@@ -134,13 +134,20 @@ def main():
             output_filename = f"incremental_update_{end_date.strftime('%Y%m%d_%H%M%S')}"
         
         # Pull and analyze data
+        if app.emporia_available:
+            data_sources = 'both'
+            logger.info("📊 Using both Home Assistant and Emporia Vue data sources")
+        else:
+            data_sources = 'both'  # Still try both - let the main app handle the fallback
+            logger.warning("⚠️ Emporia Vue not available, but still requesting both sources (will fallback to HA only)")
+        
         result = app.pull_data(
             start_date=start_date,
             end_date=end_date,
             output_format='both',  # CSV and JSON
             output_filename=output_filename,
             analyze=True,
-            data_sources='both',  # HA and Emporia if available
+            data_sources=data_sources,  # Always try both, let main app handle fallback
             apply_ha_offset=True,
             ha_pull_offset_only=False,
             is_incremental=is_incremental  # True for incremental, False for initial pull

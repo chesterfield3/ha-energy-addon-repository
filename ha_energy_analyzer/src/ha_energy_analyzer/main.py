@@ -484,8 +484,28 @@ class HAHistoryMain:
         """Initialize Emporia Vue connection (optional)"""
         try:
             print("🔌 Checking Emporia Vue connection...")
-            config_path = os.path.join(self.base_dir, 'config', 'credentials.json')
-            self.emporia_puller = EmporiaDataPuller(config_path)
+            
+            # In add-on environment, try environment variables first
+            emporia_email = os.getenv('EMPORIA_EMAIL')
+            emporia_password = os.getenv('EMPORIA_PASSWORD')
+            
+            if emporia_email and emporia_password:
+                print("🔧 Using Emporia credentials from environment variables")
+                # Create a temporary credentials dict for the puller
+                temp_config = {
+                    'emporia_vue': {
+                        'email': emporia_email,
+                        'password': emporia_password
+                    }
+                }
+                # Initialize with environment variables
+                self.emporia_puller = EmporiaDataPuller()
+                # Override the load_credentials method temporarily
+                self.emporia_puller.load_credentials = lambda: temp_config['emporia_vue']
+            else:
+                # Fall back to config file
+                config_path = os.path.join(self.base_dir, 'config', 'credentials.json')
+                self.emporia_puller = EmporiaDataPuller(config_path)
             
             if self.emporia_puller.test_connection():
                 if self.emporia_puller.get_device_and_channels():
@@ -1591,9 +1611,10 @@ class HAHistoryMain:
         # Pull Emporia data
         if data_sources in ['emporia_only', 'both']:
             if not self.emporia_available or not self.emporia_puller:
-                print("❌ Emporia not available but requested!")
+                print("⚠️ Emporia not available but requested - continuing with HA data only")
                 if data_sources == 'emporia_only':
                     return {'data_pull': False, 'analysis': None}
+                # For 'both', continue with HA data only
             else:
                 print(f"\n🔌 Pulling Emporia Vue data...")
                 
