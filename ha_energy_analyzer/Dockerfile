@@ -4,21 +4,11 @@ FROM $BUILD_FROM
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install Python and dependencies
+# Install Python and minimal dependencies
 RUN apk add --no-cache \
     python3 \
-    python3-dev \
     py3-pip \
-    gcc \
-    g++ \
-    musl-dev \
-    bash \
-    linux-headers \
-    libffi-dev \
-    openssl-dev \
-    pkgconfig \
-    freetype-dev \
-    png-dev
+    bash
 
 # Set working directory
 WORKDIR /app
@@ -41,7 +31,7 @@ RUN chmod a+x /run.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8099/health')" || exit 1
 
 # Labels
 LABEL \
