@@ -49,7 +49,12 @@ class HomeAssistantHistoryPuller:
         Returns:
             bool: True if connection successful, False otherwise
         """
-        test_url = urljoin(self.ha_url, '/api/')
+        # Fix URL joining for supervisor endpoints
+        if '/core' in self.ha_url:
+            test_url = f"{self.ha_url}/api/"
+        else:
+            test_url = urljoin(self.ha_url, '/api/')
+            
         try:
             print(f"🔍 Testing connection to: {test_url}")
             print(f"🔑 Using token: {self.headers['Authorization'][:20]}...")
@@ -113,7 +118,10 @@ class HomeAssistantHistoryPuller:
             Dictionary containing the history data response
         """
         # Construct the API URL
-        url = urljoin(self.ha_url, '/api/history/period/' + start_time)
+        if '/core' in self.ha_url:
+            url = f"{self.ha_url}/api/history/period/{start_time}"
+        else:
+            url = urljoin(self.ha_url, '/api/history/period/' + start_time)
         
         # Parameters for the request
         params = {
