@@ -28,19 +28,21 @@ from urllib.parse import urljoin
 class HomeAssistantHistoryPuller:
     """Class to handle Home Assistant history data retrieval."""
     
-    def __init__(self, ha_url: str, token: str):
+    def __init__(self, ha_url: str, token: str, statistics_threshold_days: int = 7):
         """
         Initialize the Home Assistant connection.
         
         Args:
             ha_url: URL of your Home Assistant instance (e.g., 'http://homeassistant.local:8123')
             token: Long-lived access token for API authentication
+            statistics_threshold_days: Days threshold for switching to long-term statistics API (default: 7)
         """
         self.ha_url = ha_url.rstrip('/')
         self.headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
+        self.statistics_threshold_days = statistics_threshold_days
         
     def test_connection(self) -> bool:
         """
@@ -105,14 +107,53 @@ class HomeAssistantHistoryPuller:
             print(f"❌ Error reading CSV file: {e}")
             return []
     
-    def get_history_data(self, entity_ids: List[str], start_time: str, end_time: str) -> Dict:
+    def get_history_data(self, entity_ids: List[str], start_time: str, end_time: str) -> List[List[Dict]]:
         """
-        Retrieve history data from Home Assistant.
+        Retrieve history data from Home Assistant using the optimal API endpoint.
+        
+        Automatically chooses between:
+        - Regular history API: For recent data (< 7 days)
+        - Long-term statistics API: For older data (>= 7 days)
         
         Args:
             entity_ids: List of entity IDs to retrieve data for
             start_time: Start time in ISO format (e.g., '2025-10-15T00:00:00')
             end_time: End time in ISO format (e.g., '2025-10-15T23:59:59')
+            
+        Returns:
+            Dictionary containing the history data response
+        """
+        # Calculate the time span to determine optimal API
+        try:
+            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+            duration = end_dt - start_dt
+            days_span = duration.days
+            
+            print(f"🔄 Fetching history data from {start_time} to {end_time}")
+            print(f"⏱️ Duration: {days_span} days, {duration.seconds // 3600} hours")
+            
+            # Use long-term statistics for longer periods (configurable threshold)
+            if days_span >= self.statistics_threshold_days:
+                print(f"📊 Using Long-Term Statistics API (optimal for {days_span}+ day periods, threshold: {self.statistics_threshold_days} days)")
+                return self.get_long_term_statistics(entity_ids, start_time, end_time)
+            else:
+                print(f"📊 Using Regular History API (optimal for {days_span} day periods, threshold: {self.statistics_threshold_days} days)")
+                return self.get_regular_history(entity_ids, start_time, end_time)
+                
+        except Exception as e:
+            print(f"⚠️ Error parsing dates, falling back to regular history API: {e}")
+            return self.get_regular_history(entity_ids, start_time, end_time)
+    
+    def get_regular_history(self, entity_ids: List[str], start_time: str, end_time: str) -> List[List[Dict]]:
+        """
+        Retrieve history data using the regular /api/history/period endpoint.
+        Best for recent data (< 7 days) with high resolution.
+        
+        Args:
+            entity_ids: List of entity IDs to retrieve data for  
+            start_time: Start time in ISO format
+            end_time: End time in ISO format
             
         Returns:
             Dictionary containing the history data response
@@ -129,9 +170,166 @@ class HomeAssistantHistoryPuller:
             'end_time': end_time
         }
         
-        print(f"🔄 Fetching history data from {start_time} to {end_time}")
-        print(f"📡 API URL: {url}")
+        print(f"📡 Regular History API URL: {url}")
         print(f"🎯 Entities: {', '.join(entity_ids)}")
+        
+        try:
+            response = requests.get(
+                url,
+                headers=self.headers,
+                params=params,
+                timeout=60  # Increased timeout for larger requests
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            print(f"✅ Successfully retrieved regular history data")
+            
+            # Count total data points
+            total_points = sum(len(entity_data) for entity_data in data)
+            print(f"� Total data points retrieved: {total_points}")
+            
+            return data
+            
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error fetching regular history data: {e}")
+            return []
+        except json.JSONDecodeError as e:
+            print(f"❌ Error parsing JSON response: {e}")
+            return []
+    
+    def get_long_term_statistics(self, entity_ids: List[str], start_time: str, end_time: str) -> List[List[Dict]]:
+        """
+        Retrieve history data using the /api/history/statistics endpoint.
+        Best for historical data (7+ days) with hourly aggregation.
+        
+        Args:
+            entity_ids: List of entity IDs to retrieve data for
+            start_time: Start time in ISO format  
+            end_time: End time in ISO format
+            
+        Returns:
+            Dictionary containing the history data response (converted to regular format)
+        """
+        # Construct the statistics API URL
+        if '/core' in self.ha_url:
+            url = f"{self.ha_url}/api/history/statistics"
+        else:
+            url = urljoin(self.ha_url, '/api/history/statistics')
+        
+        # Parameters for the statistics request
+        params = {
+            'statistic_ids': ','.join(entity_ids),
+            'start_time': start_time,
+            'end_time': end_time,
+            'period': 'hour'  # Hourly statistics for better granularity
+        }
+        
+        print(f"📡 Long-Term Statistics API URL: {url}")
+        print(f"🎯 Statistics IDs: {', '.join(entity_ids)}")
+        print(f"⏱️ Period: hourly")
+        
+        try:
+            response = requests.get(
+                url,
+                headers=self.headers,
+                params=params,
+                timeout=60
+            )
+            response.raise_for_status()
+            
+            statistics_data = response.json()
+            print(f"✅ Successfully retrieved long-term statistics")
+            
+            # Convert statistics format to regular history format for compatibility
+            converted_data = self.convert_statistics_to_history_format(statistics_data)
+            
+            # Count total data points
+            total_points = sum(len(entity_data) for entity_data in converted_data)
+            print(f"📊 Total data points converted: {total_points}")
+            
+            return converted_data
+            
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error fetching long-term statistics: {e}")
+            print(f"🔄 Falling back to regular history API...")
+            return self.get_regular_history(entity_ids, start_time, end_time)
+        except json.JSONDecodeError as e:
+            print(f"❌ Error parsing statistics JSON response: {e}")
+            print(f"🔄 Falling back to regular history API...")
+            return self.get_regular_history(entity_ids, start_time, end_time)
+    
+    def convert_statistics_to_history_format(self, statistics_data: Dict) -> List[List[Dict]]:
+        """
+        Convert long-term statistics format to regular history format for compatibility.
+        
+        Args:
+            statistics_data: Raw statistics response from HA API
+            
+        Returns:
+            List in the same format as regular history API
+        """
+        try:
+            converted_data = []
+            
+            # Process each entity's statistics
+            for entity_id, stats_list in statistics_data.items():
+                entity_records = []
+                
+                for stat_record in stats_list:
+                    # Convert statistics record to history record format
+                    history_record = {
+                        'entity_id': entity_id,
+                        'state': str(stat_record.get('state', stat_record.get('sum', 0))),  # Use 'sum' for energy sensors
+                        'last_changed': stat_record.get('start', ''),
+                        'last_updated': stat_record.get('start', ''),
+                        'attributes': {
+                            'unit_of_measurement': 'kWh',  # Default for energy sensors
+                            'device_class': 'energy',
+                            'state_class': 'total_increasing',
+                            'source': 'long_term_statistics',
+                            'original_statistic': stat_record  # Keep original for debugging
+                        }
+                    }
+                    entity_records.append(history_record)
+                
+                if entity_records:
+                    converted_data.append(entity_records)
+                    print(f"📊 Converted {len(entity_records)} statistics records for {entity_id}")
+            
+            print(f"✅ Statistics conversion complete: {len(converted_data)} entities")
+            return converted_data
+            
+        except Exception as e:
+            print(f"❌ Error converting statistics to history format: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def get_statistics_metadata(self, entity_ids: List[str]) -> Dict:
+        """
+        Get metadata about available statistics for the given entities.
+        Useful for understanding what statistics are available before requesting data.
+        
+        Args:
+            entity_ids: List of entity IDs to check for statistics
+            
+        Returns:
+            Dictionary containing available statistics metadata
+        """
+        # Construct the statistics metadata API URL
+        if '/core' in self.ha_url:
+            url = f"{self.ha_url}/api/history/statistics/metadata"
+        else:
+            url = urljoin(self.ha_url, '/api/history/statistics/metadata')
+        
+        # Parameters for the metadata request
+        params = {
+            'statistic_ids': ','.join(entity_ids)
+        }
+        
+        print(f"🔍 Checking statistics metadata for entities...")
+        print(f"📡 API URL: {url}")
         
         try:
             response = requests.get(
@@ -142,28 +340,31 @@ class HomeAssistantHistoryPuller:
             )
             response.raise_for_status()
             
-            data = response.json()
-            print(f"✅ Successfully retrieved history data")
+            metadata = response.json()
+            print(f"✅ Retrieved statistics metadata for {len(metadata)} entities")
             
-            # Count total data points
-            total_points = sum(len(entity_data) for entity_data in data)
-            print(f"📊 Total data points retrieved: {total_points}")
+            # Log available statistics
+            for entity_id, meta in metadata.items():
+                print(f"📊 {entity_id}:")
+                print(f"   - Unit: {meta.get('unit_of_measurement', 'unknown')}")
+                print(f"   - Statistics ID: {meta.get('statistic_id', 'unknown')}")
+                print(f"   - Source: {meta.get('source', 'unknown')}")
             
-            return data
+            return metadata
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error fetching history data: {e}")
+            print(f"❌ Error fetching statistics metadata: {e}")
             return {}
         except json.JSONDecodeError as e:
-            print(f"❌ Error parsing JSON response: {e}")
+            print(f"❌ Error parsing metadata JSON response: {e}")
             return {}
     
-    def save_to_csv(self, history_data: Dict, output_file: str) -> bool:
+    def save_to_csv(self, history_data: List[List[Dict]], output_file: str) -> bool:
         """
         Save history data to CSV file.
         
         Args:
-            history_data: Dictionary containing history data from HA API
+            history_data: List of entity data lists from HA API
             output_file: Path to output CSV file
             
         Returns:
@@ -202,12 +403,12 @@ class HomeAssistantHistoryPuller:
             print(f"❌ Error saving to CSV: {e}")
             return False
     
-    def save_to_json(self, history_data: Dict, output_file: str) -> bool:
+    def save_to_json(self, history_data: List[List[Dict]], output_file: str) -> bool:
         """
         Save history data to JSON file.
         
         Args:
-            history_data: Dictionary containing history data from HA API
+            history_data: List of entity data lists from HA API
             output_file: Path to output JSON file
             
         Returns:

@@ -1,8 +1,8 @@
 {
   "name": "HA Energy Data Analyzer",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "slug": "ha_energy_analyzer",
-  "description": "Comprehensive energy monitoring and analysis tool that integrates with Home Assistant and Emporia Vue smart meters. Initial data pulls may take several minutes for large historical datasets.",
+  "description": "Comprehensive energy monitoring and analysis tool that integrates with Home Assistant and Emporia Vue smart meters. Automatically uses optimal data sources (regular history vs long-term statistics) for different time ranges.",
   "url": "https://github.com/chesterfield3/HA_Energy_Tracker",
   "startup": "application",
   "boot": "auto",
