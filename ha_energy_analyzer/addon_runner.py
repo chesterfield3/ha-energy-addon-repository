@@ -97,7 +97,7 @@ def main():
         output_dir = "/share/ha_energy_analyzer/output"
         os.makedirs(output_dir, exist_ok=True)
         
-        existing_analysis = os.path.join(output_dir, "energy_analysis.csv")
+        existing_analysis = os.path.join(output_dir, "latest_analysis.csv")
         is_first_run = not os.path.exists(existing_analysis)
         
         if is_first_run:
@@ -158,6 +158,12 @@ def main():
                 if os.path.exists("/app/output/energy_analysis.json"):
                     shutil.copy2("/app/output/energy_analysis.json", latest_json)
                     logger.info(f"📊 Latest JSON available at: {latest_json}")
+                    
+                # Ensure the detection file exists for future runs
+                if not os.path.exists(latest_csv) and os.path.exists("/app/output/energy_analysis.csv"):
+                    shutil.copy2("/app/output/energy_analysis.csv", latest_csv)
+                    logger.info(f"🔧 Created detection file for future incremental runs")
+                    
             except Exception as e:
                 logger.warning(f"⚠️ Could not copy latest files: {e}")
             

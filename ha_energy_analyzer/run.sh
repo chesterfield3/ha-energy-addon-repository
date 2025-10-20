@@ -51,7 +51,7 @@ fi
 
 # Check if this is the first run
 FIRST_RUN=false
-if [ ! -f "$DATA_DIR/output/energy_analysis.csv" ]; then
+if [ ! -f "$DATA_DIR/output/latest_analysis.csv" ]; then
     FIRST_RUN=true
     bashio::log.info "🔍 First run detected - will perform initial historical data pull from Sept 27, 2025"
     bashio::log.info "⚠️ Initial pull may take 10-30 minutes depending on data volume"
