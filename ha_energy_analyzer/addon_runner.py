@@ -150,18 +150,54 @@ def main():
         logger.info("🎯 About to call app.pull_data()...")
         
         try:
-            result = app.pull_data(
-                start_date=start_date,
-                end_date=end_date,
-                output_format='both',  # CSV and JSON
-                output_filename=output_filename,
-                analyze=True,
-                data_sources=data_sources,  # Always try both, let main app handle fallback
-                apply_ha_offset=True,
-                ha_pull_offset_only=False,
-                is_incremental=is_incremental  # True for incremental, False for initial pull
-            )
-            logger.info(f"✅ app.pull_data() returned successfully")
+            # Use threading with timeout for Windows compatibility
+            import threading
+            import queue
+            
+            result_queue = queue.Queue()
+            exception_queue = queue.Queue()
+            
+            def run_pull_data():
+                try:
+                    result = app.pull_data(
+                        start_date=start_date,
+                        end_date=end_date,
+                        output_format='both',  # CSV and JSON
+                        output_filename=output_filename,
+                        analyze=True,
+                        data_sources=data_sources,  # Always try both, let main app handle fallback
+                        apply_ha_offset=True,
+                        ha_pull_offset_only=False,
+                        is_incremental=is_incremental  # True for incremental, False for initial pull
+                    )
+                    result_queue.put(result)
+                except Exception as e:
+                    exception_queue.put(e)
+            
+            # Start the function in a separate thread
+            thread = threading.Thread(target=run_pull_data)
+            thread.daemon = True
+            thread.start()
+            
+            # Wait for completion with timeout
+            thread.join(timeout=60)  # 60 second timeout
+            
+            if thread.is_alive():
+                logger.error("⏰ TIMEOUT: pull_data() call timed out after 60 seconds")
+                logger.error("🔍 The function call is hanging - likely in parameter processing or function entry")
+                raise TimeoutError("pull_data() call timed out")
+            
+            # Check for exceptions
+            if not exception_queue.empty():
+                raise exception_queue.get()
+            
+            # Get the result
+            if not result_queue.empty():
+                result = result_queue.get()
+                logger.info(f"✅ app.pull_data() returned successfully")
+            else:
+                raise RuntimeError("Function completed but no result returned")
+            
         except Exception as e:
             logger.error(f"❌ Exception in app.pull_data(): {e}")
             import traceback
