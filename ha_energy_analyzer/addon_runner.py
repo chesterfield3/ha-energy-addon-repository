@@ -143,20 +143,30 @@ def main():
         
         logger.info(f"🚀 Starting data pull with parameters:")
         logger.info(f"   📅 Date range: {start_date} to {end_date}")
-        logger.info(f"   📊 Data sources: {data_sources}")
+        logger.info(f"   � Date types: {type(start_date)} to {type(end_date)}")
+        logger.info(f"   �📊 Data sources: {data_sources}")
         logger.info(f"   🔄 Incremental: {is_incremental}")
         
-        result = app.pull_data(
-            start_date=start_date,
-            end_date=end_date,
-            output_format='both',  # CSV and JSON
-            output_filename=output_filename,
-            analyze=True,
-            data_sources=data_sources,  # Always try both, let main app handle fallback
-            apply_ha_offset=True,
-            ha_pull_offset_only=False,
-            is_incremental=is_incremental  # True for incremental, False for initial pull
-        )
+        logger.info("🎯 About to call app.pull_data()...")
+        
+        try:
+            result = app.pull_data(
+                start_date=start_date,
+                end_date=end_date,
+                output_format='both',  # CSV and JSON
+                output_filename=output_filename,
+                analyze=True,
+                data_sources=data_sources,  # Always try both, let main app handle fallback
+                apply_ha_offset=True,
+                ha_pull_offset_only=False,
+                is_incremental=is_incremental  # True for incremental, False for initial pull
+            )
+            logger.info(f"✅ app.pull_data() returned successfully")
+        except Exception as e:
+            logger.error(f"❌ Exception in app.pull_data(): {e}")
+            import traceback
+            logger.error(f"📋 Traceback: {traceback.format_exc()}")
+            raise
         
         logger.info(f"📋 Data pull completed, checking results...")
         
