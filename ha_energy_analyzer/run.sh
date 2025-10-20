@@ -49,19 +49,43 @@ if [ ! -f "$DATA_DIR/ha_sensors.csv" ] && [ -f "/app/data/ha_sensors.csv" ]; the
     cp /app/data/*.template "$DATA_DIR/" 2>/dev/null || true
 fi
 
+# Check if this is the first run
+FIRST_RUN=false
+if [ ! -f "$DATA_DIR/output/energy_analysis.csv" ]; then
+    FIRST_RUN=true
+    bashio::log.info "🔍 First run detected - will perform initial historical data pull from Sept 27, 2025"
+    bashio::log.info "⚠️ Initial pull may take 10-30 minutes depending on data volume"
+else
+    bashio::log.info "📊 Existing data found - will perform incremental updates"
+fi
+
 # Main loop - run analyzer every UPDATE_INTERVAL hours
+RUN_COUNT=0
 while true; do
-    bashio::log.info "Running energy analysis..."
+    RUN_COUNT=$((RUN_COUNT + 1))
     
-    # Run the analyzer
-    if python3 -m src.ha_energy_analyzer.main; then
-        bashio::log.info "Energy analysis completed successfully"
+    if [ "$FIRST_RUN" = true ] && [ $RUN_COUNT -eq 1 ]; then
+        bashio::log.info "🚀 Starting initial historical data pull (Run #$RUN_COUNT)..."
+        bashio::log.info "📊 This will pull all data from September 27, 2025 to present"
     else
-        bashio::log.error "Energy analysis failed"
+        bashio::log.info "🔄 Running incremental energy analysis (Run #$RUN_COUNT)..."
+    fi
+    
+    # Run the non-interactive analyzer
+    if python3 addon_runner.py; then
+        if [ "$FIRST_RUN" = true ] && [ $RUN_COUNT -eq 1 ]; then
+            bashio::log.info "✅ Initial historical data pull completed successfully!"
+            bashio::log.info "📈 Subsequent runs will perform incremental updates"
+            FIRST_RUN=false
+        else
+            bashio::log.info "✅ Incremental energy analysis completed successfully"
+        fi
+    else
+        bashio::log.error "❌ Energy analysis failed (Run #$RUN_COUNT)"
     fi
     
     # Wait for next update interval (convert hours to seconds)
     SLEEP_SECONDS=$((UPDATE_INTERVAL * 3600))
-    bashio::log.info "Waiting ${UPDATE_INTERVAL} hours until next analysis..."
+    bashio::log.info "💤 Waiting ${UPDATE_INTERVAL} hours until next analysis..."
     sleep $SLEEP_SECONDS
 done
