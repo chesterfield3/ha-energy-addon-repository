@@ -6,7 +6,7 @@ Combines data from multiple sources, converts cumulative readings to hourly cons
 and provides detailed analysis with visualizations.
 """
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 __author__ = "Home Assistant Energy Data Analysis Project"
 
 from .main import HAHistoryMain
