@@ -43,7 +43,7 @@ def main():
         app = HAHistoryMain()
         
         # Override paths for add-on environment
-        app.base_dir = "/app"
+        app.base_dir = "/share/ha_energy_analyzer"  # Use shared directory for persistence
         app.csv_file = "/share/ha_energy_analyzer/ha_sensors.csv"
         
         # Use environment variables for credentials
@@ -164,20 +164,23 @@ def main():
             latest_csv = os.path.join(output_dir, "latest_analysis.csv")
             latest_json = os.path.join(output_dir, "latest_analysis.json")
             
-            # Copy the latest files
+            # With the new base_dir, files are saved directly to shared directory
             import shutil
             try:
-                if os.path.exists("/app/output/energy_analysis.csv"):
-                    shutil.copy2("/app/output/energy_analysis.csv", latest_csv)
+                energy_csv = os.path.join(output_dir, "energy_analysis.csv")
+                energy_json = os.path.join(output_dir, "energy_analysis.json")
+                
+                if os.path.exists(energy_csv):
+                    shutil.copy2(energy_csv, latest_csv)
                     logger.info(f"📊 Latest CSV available at: {latest_csv}")
                 
-                if os.path.exists("/app/output/energy_analysis.json"):
-                    shutil.copy2("/app/output/energy_analysis.json", latest_json)
+                if os.path.exists(energy_json):
+                    shutil.copy2(energy_json, latest_json)
                     logger.info(f"📊 Latest JSON available at: {latest_json}")
                     
                 # Ensure the detection file exists for future runs
-                if not os.path.exists(latest_csv) and os.path.exists("/app/output/energy_analysis.csv"):
-                    shutil.copy2("/app/output/energy_analysis.csv", latest_csv)
+                if not os.path.exists(latest_csv) and os.path.exists(energy_csv):
+                    shutil.copy2(energy_csv, latest_csv)
                     logger.info(f"🔧 Created detection file for future incremental runs")
                     
             except Exception as e:
