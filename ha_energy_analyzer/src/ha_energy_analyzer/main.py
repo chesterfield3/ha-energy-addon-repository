@@ -1532,8 +1532,10 @@ class HAHistoryMain:
             ha_pull_offset_only: If True, only applies pull offset (no timestamp adjustment)
             is_incremental: If True, merge with existing data instead of overwriting
         """
-        print(f"🚨 DEBUG: Entered pull_data function!")
-        print(f"🚨 DEBUG: Parameters - start: {start_date}, end: {end_date}, sources: {data_sources}")
+        print(f"� Starting data retrieval...")
+        print(f"� Data sources: {data_sources}")
+        print(f"📅 Date range: {start_date} to {end_date}")
+        print(f"🔄 Incremental mode: {is_incremental}")
         
         ha_analyzed_df = None  # Will hold analyzed HA data as DataFrame
         emporia_hourly_df = None  # Will hold Emporia data in matching format
