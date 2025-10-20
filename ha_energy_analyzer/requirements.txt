@@ -1,4 +1,4 @@
-# Core requirements
+# Core requirements for Home Assistant Add-on
 requests>=2.31.0
 pandas>=2.0.0
 numpy>=1.24.0
@@ -8,10 +8,5 @@ pytz>=2023.3
 # Emporia Vue integration
 pyemvue>=0.15.0
 
-# Data visualization
+# Essential data visualization (lightweight)
 matplotlib>=3.7.0
-seaborn>=0.12.0
-
-# Optional scientific computing (can be removed if space is a concern)
-scipy>=1.10.0
-scikit-learn>=1.3.0

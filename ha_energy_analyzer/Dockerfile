@@ -1,4 +1,4 @@
-ARG BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
 FROM $BUILD_FROM
 
 # Set shell
@@ -11,7 +11,10 @@ RUN apk add --no-cache \
     py3-pip \
     gcc \
     musl-dev \
-    bash
+    bash \
+    linux-headers \
+    libffi-dev \
+    openssl-dev
 
 # Set working directory
 WORKDIR /app
@@ -20,7 +23,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python packages
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Copy application files
 COPY src/ ./src/
