@@ -139,29 +139,82 @@ class HomeAssistantDatabasePuller:
             start_ts = start_time.timestamp()
             end_ts = end_time.timestamp()
             
+            print(f"🔍 Debug: start_ts = {start_ts}, end_ts = {end_ts}")
+            
+            # First, let's check what entities actually exist in statistics_meta
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT statistic_id FROM statistics_meta LIMIT 10")
+            sample_entities = [row[0] for row in cursor.fetchall()]
+            print(f"🔍 Debug: Sample entities in statistics_meta: {sample_entities[:5]}")
+            
+            # Check if any of our target entities exist
+            placeholders_check = ','.join(['?'] * len(entity_ids))
+            cursor.execute(f"SELECT statistic_id FROM statistics_meta WHERE statistic_id IN ({placeholders_check})", entity_ids)
+            found_entities = [row[0] for row in cursor.fetchall()]
+            print(f"🔍 Debug: Found entities in statistics_meta: {found_entities}")
+            
+            if not found_entities:
+                print(f"⚠️ None of the requested entities found in statistics_meta table")
+                return []
+            
+            # Use only the entities that actually exist
+            working_entity_ids = found_entities
+            
             # Build the SQL query
-            placeholders = ','.join(['?'] * len(entity_ids))
+            placeholders = ','.join(['?'] * len(working_entity_ids))
+            
+            # Also check what data exists in the time range
+            cursor.execute(f"""
+                SELECT COUNT(*), MIN(start_ts), MAX(start_ts) 
+                FROM {stats_table} s
+                JOIN statistics_meta sm ON s.metadata_id = sm.id
+                WHERE sm.statistic_id IN ({placeholders})
+            """, working_entity_ids)
+            
+            count_result = cursor.fetchone()
+            print(f"🔍 Debug: count_result = {count_result}")
+            if count_result:
+                total_records, min_start, max_start = count_result
+                print(f"🔍 Debug: Total records for entities: {total_records}")
+                print(f"🔍 Debug: min_start = {min_start}, max_start = {max_start}")
+                if min_start and max_start:
+                    min_dt = datetime.fromtimestamp(min_start)
+                    max_dt = datetime.fromtimestamp(max_start)
+                    print(f"🔍 Debug: Data range: {min_dt} to {max_dt}")
+                    
+                    # Check how many records match our time filter
+                    cursor.execute(f"""
+                        SELECT COUNT(*) 
+                        FROM {stats_table} s
+                        JOIN statistics_meta sm ON s.metadata_id = sm.id
+                        WHERE sm.statistic_id IN ({placeholders})
+                        AND s.start_ts >= ?
+                        AND s.start_ts <= ?
+                    """, working_entity_ids + [start_ts, end_ts])
+                    
+                    filtered_count = cursor.fetchone()[0]
+                    print(f"🔍 Debug: Records in time range {start_ts} to {end_ts}: {filtered_count}")
             
             query = f"""
             SELECT 
                 sm.statistic_id,
                 sm.unit_of_measurement,
-                s.start,
+                s.start_ts,
                 s.mean,
                 s.min,
                 s.max,
-                s.last_reset,
+                s.last_reset_ts,
                 s.state,
                 s.sum
             FROM {stats_table} s
             JOIN statistics_meta sm ON s.metadata_id = sm.id
             WHERE sm.statistic_id IN ({placeholders})
-            AND s.start >= ?
-            AND s.start <= ?
-            ORDER BY sm.statistic_id, s.start
+            AND s.start_ts >= ?
+            AND s.start_ts <= ?
+            ORDER BY sm.statistic_id, s.start_ts
             """
             
-            params = entity_ids + [start_ts, end_ts]
+            params = working_entity_ids + [start_ts, end_ts]
             
             cursor = self.connection.cursor()
             cursor.execute(query, params)
@@ -169,7 +222,7 @@ class HomeAssistantDatabasePuller:
             results = []
             for row in cursor.fetchall():
                 # Convert back to datetime
-                start_dt = datetime.fromtimestamp(row['start'])
+                start_dt = datetime.fromtimestamp(row['start_ts'])
                 
                 record = {
                     'entity_id': row['statistic_id'],
@@ -179,7 +232,7 @@ class HomeAssistantDatabasePuller:
                     'max': row['max'],
                     'state': row['state'],
                     'sum': row['sum'],
-                    'last_reset': datetime.fromtimestamp(row['last_reset']).isoformat() if row['last_reset'] else None,
+                    'last_reset': datetime.fromtimestamp(row['last_reset_ts']).isoformat() if row['last_reset_ts'] else None,
                     'unit_of_measurement': row['unit_of_measurement'],
                     'data_source': f'database_{period_name}'
                 }
@@ -217,8 +270,40 @@ class HomeAssistantDatabasePuller:
             start_ts = start_time.timestamp()
             end_ts = end_time.timestamp()
             
+            print(f"🔍 Debug: start_ts = {start_ts}, end_ts = {end_ts}")
+            
+            # Check what entities actually exist in states table
+            cursor = self.connection.cursor()
+            placeholders_check = ','.join(['?'] * len(entity_ids))
+            cursor.execute(f"SELECT DISTINCT entity_id FROM states WHERE entity_id IN ({placeholders_check}) LIMIT 10", entity_ids)
+            found_entities = [row[0] for row in cursor.fetchall()]
+            print(f"🔍 Debug: Found entities in states table: {found_entities}")
+            
+            if not found_entities:
+                print(f"⚠️ None of the requested entities found in states table")
+                return []
+            
+            # Check data range for these entities
+            cursor.execute(f"""
+                SELECT COUNT(*), MIN(last_changed), MAX(last_changed)
+                FROM states 
+                WHERE entity_id IN ({placeholders_check})
+            """, found_entities)
+            
+            count_result = cursor.fetchone()
+            if count_result:
+                total_records, min_changed, max_changed = count_result
+                print(f"🔍 Debug: Total state records for entities: {total_records}")
+                if min_changed and max_changed:
+                    min_dt = datetime.fromtimestamp(min_changed)
+                    max_dt = datetime.fromtimestamp(max_changed)
+                    print(f"🔍 Debug: State data range: {min_dt} to {max_dt}")
+            
+            # Use only the entities that actually exist
+            working_entity_ids = found_entities
+            
             # Build the SQL query
-            placeholders = ','.join(['?'] * len(entity_ids))
+            placeholders = ','.join(['?'] * len(working_entity_ids))
             
             query = f"""
             SELECT 
@@ -234,7 +319,7 @@ class HomeAssistantDatabasePuller:
             ORDER BY s.entity_id, s.last_changed
             """
             
-            params = entity_ids + [start_ts, end_ts]
+            params = working_entity_ids + [start_ts, end_ts]
             
             cursor = self.connection.cursor()
             cursor.execute(query, params)
@@ -415,6 +500,79 @@ class HomeAssistantDatabasePuller:
         except Exception as e:
             print(f"❌ Error getting database info: {e}")
             return {}
+    
+    def debug_database_contents(self, entity_id_pattern: Optional[str] = None) -> Dict:
+        """
+        Debug helper to examine database contents and structure.
+        
+        Args:
+            entity_id_pattern: Optional pattern to filter entities (SQL LIKE syntax)
+            
+        Returns:
+            Dictionary with debug information
+        """
+        if not self.connection:
+            return {}
+        
+        debug_info = {}
+        cursor = self.connection.cursor()
+        
+        try:
+            # Check statistics_meta table
+            if entity_id_pattern:
+                cursor.execute("SELECT COUNT(*) FROM statistics_meta WHERE statistic_id LIKE ?", (f"%{entity_id_pattern}%",))
+            else:
+                cursor.execute("SELECT COUNT(*) FROM statistics_meta")
+            debug_info['statistics_meta_count'] = cursor.fetchone()[0]
+            
+            # Get sample statistic IDs
+            if entity_id_pattern:
+                cursor.execute("SELECT statistic_id FROM statistics_meta WHERE statistic_id LIKE ? LIMIT 10", (f"%{entity_id_pattern}%",))
+            else:
+                cursor.execute("SELECT statistic_id FROM statistics_meta LIMIT 10")
+            debug_info['sample_statistic_ids'] = [row[0] for row in cursor.fetchall()]
+            
+            # Check statistics_short_term table
+            cursor.execute("SELECT COUNT(*) FROM statistics_short_term")
+            debug_info['statistics_short_term_count'] = cursor.fetchone()[0]
+            
+            # Check states table
+            if entity_id_pattern:
+                cursor.execute("SELECT COUNT(DISTINCT entity_id) FROM states WHERE entity_id LIKE ?", (f"%{entity_id_pattern}%",))
+            else:
+                cursor.execute("SELECT COUNT(DISTINCT entity_id) FROM states")
+            debug_info['unique_entities_in_states'] = cursor.fetchone()[0]
+            
+            # Get sample entity IDs from states
+            if entity_id_pattern:
+                cursor.execute("SELECT DISTINCT entity_id FROM states WHERE entity_id LIKE ? LIMIT 10", (f"%{entity_id_pattern}%",))
+            else:
+                cursor.execute("SELECT DISTINCT entity_id FROM states LIMIT 10")
+            debug_info['sample_entity_ids_states'] = [row[0] for row in cursor.fetchall()]
+            
+            # Get time range of data
+            cursor.execute("SELECT MIN(last_changed), MAX(last_changed) FROM states")
+            min_ts, max_ts = cursor.fetchone()
+            if min_ts and max_ts:
+                debug_info['states_time_range'] = {
+                    'min': datetime.fromtimestamp(min_ts).isoformat(),
+                    'max': datetime.fromtimestamp(max_ts).isoformat()
+                }
+            
+            # Check if statistics have time range
+            cursor.execute("SELECT MIN(start), MAX(start) FROM statistics_short_term")
+            min_ts, max_ts = cursor.fetchone()
+            if min_ts and max_ts:
+                debug_info['statistics_time_range'] = {
+                    'min': datetime.fromtimestamp(min_ts).isoformat(),
+                    'max': datetime.fromtimestamp(max_ts).isoformat()
+                }
+            
+            return debug_info
+            
+        except Exception as e:
+            debug_info['error'] = str(e)
+            return debug_info
 
 
 # Integration function to work with existing code
