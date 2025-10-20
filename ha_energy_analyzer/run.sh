@@ -39,5 +39,29 @@ fi
 # Change to app directory
 cd /app
 
-# Start the energy analyzer with health check server
-exec python3 -m src.ha_energy_analyzer.main --addon-mode
+# Start health check server in background
+python3 health_server.py &
+
+# Copy sensor configuration files to shared directory if they don't exist
+if [ ! -f "$DATA_DIR/ha_sensors.csv" ] && [ -f "/app/data/ha_sensors.csv" ]; then
+    bashio::log.info "Copying default sensor configuration files..."
+    cp /app/data/*.csv "$DATA_DIR/" 2>/dev/null || true
+    cp /app/data/*.template "$DATA_DIR/" 2>/dev/null || true
+fi
+
+# Main loop - run analyzer every UPDATE_INTERVAL hours
+while true; do
+    bashio::log.info "Running energy analysis..."
+    
+    # Run the analyzer
+    if python3 -m src.ha_energy_analyzer.main; then
+        bashio::log.info "Energy analysis completed successfully"
+    else
+        bashio::log.error "Energy analysis failed"
+    fi
+    
+    # Wait for next update interval (convert hours to seconds)
+    SLEEP_SECONDS=$((UPDATE_INTERVAL * 3600))
+    bashio::log.info "Waiting ${UPDATE_INTERVAL} hours until next analysis..."
+    sleep $SLEEP_SECONDS
+done

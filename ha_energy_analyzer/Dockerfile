@@ -10,7 +10,8 @@ RUN apk add --no-cache \
     python3-dev \
     py3-pip \
     gcc \
-    musl-dev
+    musl-dev \
+    bash
 
 # Set working directory
 WORKDIR /app
@@ -24,6 +25,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY src/ ./src/
 COPY config/ ./config/
+COPY data/ ./data/
 COPY *.py ./
 
 # Copy run script
@@ -32,7 +34,7 @@ RUN chmod a+x /run.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
 
 # Labels
 LABEL \

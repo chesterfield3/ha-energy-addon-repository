@@ -43,6 +43,5 @@
   },
   "environment": {
     "LOG_FORMAT": "{LEVEL}: {MESSAGE}"
-  },
-  "image": "ghcr.io/chesterfield3/ha-energy-analyzer"
+  }
 }
