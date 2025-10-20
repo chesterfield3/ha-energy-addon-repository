@@ -5,6 +5,9 @@ numpy>=1.24.0
 python-dateutil>=2.8.0
 pytz>=2023.3
 
+# Peak hour detection with holidays
+holidays>=0.34
+
 # Emporia Vue integration
 pyemvue>=0.15.0
 

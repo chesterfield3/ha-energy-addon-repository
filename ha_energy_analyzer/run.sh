@@ -71,21 +71,79 @@ while true; do
         bashio::log.info "🔄 Running incremental energy analysis (Run #$RUN_COUNT)..."
     fi
     
+# Function to calculate seconds until next 3:00 AM CT
+calculate_sleep_until_3am() {
+    local current_epoch=$(date +%s)
+    local current_hour=$(TZ="America/Chicago" date +%H)
+    local current_minute=$(TZ="America/Chicago" date +%M)
+    local current_second=$(TZ="America/Chicago" date +%S)
+    
+    # Calculate seconds since midnight CT
+    local seconds_since_midnight=$(( (current_hour * 3600) + (current_minute * 60) + current_second ))
+    
+    # Target time: 3:00 AM CT (3 * 3600 = 10800 seconds since midnight)
+    local target_seconds=10800
+    
+    # Calculate seconds until next 3:00 AM
+    if [ $seconds_since_midnight -lt $target_seconds ]; then
+        # 3:00 AM is today
+        local sleep_seconds=$(( target_seconds - seconds_since_midnight ))
+    else
+        # 3:00 AM is tomorrow (24 hours - current + target)
+        local sleep_seconds=$(( 86400 - seconds_since_midnight + target_seconds ))
+    fi
+    
+    echo $sleep_seconds
+}
+
+# Function to format sleep duration for display
+format_sleep_duration() {
+    local total_seconds=$1
+    local hours=$(( total_seconds / 3600 ))
+    local minutes=$(( (total_seconds % 3600) / 60 ))
+    
+    if [ $hours -gt 0 ]; then
+        echo "${hours}h ${minutes}m"
+    else
+        echo "${minutes}m"
+    fi
+}
+
+# Main loop - run analyzer, then wait until 3:00 AM CT
+RUN_COUNT=0
+while true; do
+    RUN_COUNT=$((RUN_COUNT + 1))
+    
+    # Show current time in CT
+    CURRENT_TIME_CT=$(TZ="America/Chicago" date '+%Y-%m-%d %H:%M:%S %Z')
+    bashio::log.info "🕐 Current time: $CURRENT_TIME_CT"
+    
+    if [ "$FIRST_RUN" = true ] && [ $RUN_COUNT -eq 1 ]; then
+        bashio::log.info "🚀 Starting initial historical data pull (Run #$RUN_COUNT)..."
+        bashio::log.info "📊 This will pull all data from September 27, 2025 to present"
+    else
+        bashio::log.info "🔄 Running scheduled energy analysis (Run #$RUN_COUNT)..."
+    fi
+    
     # Run the non-interactive analyzer
     if python3 addon_runner.py; then
         if [ "$FIRST_RUN" = true ] && [ $RUN_COUNT -eq 1 ]; then
             bashio::log.info "✅ Initial historical data pull completed successfully!"
-            bashio::log.info "📈 Subsequent runs will perform incremental updates"
+            bashio::log.info "📈 Subsequent runs will be scheduled daily at 3:00 AM CT"
             FIRST_RUN=false
         else
-            bashio::log.info "✅ Incremental energy analysis completed successfully"
+            bashio::log.info "✅ Scheduled energy analysis completed successfully"
         fi
     else
         bashio::log.error "❌ Energy analysis failed (Run #$RUN_COUNT)"
     fi
     
-    # Wait for next update interval (convert hours to seconds)
-    SLEEP_SECONDS=$((UPDATE_INTERVAL * 3600))
-    bashio::log.info "💤 Waiting ${UPDATE_INTERVAL} hours until next analysis..."
+    # Calculate sleep time until next 3:00 AM CT
+    SLEEP_SECONDS=$(calculate_sleep_until_3am)
+    SLEEP_DURATION=$(format_sleep_duration $SLEEP_SECONDS)
+    NEXT_RUN_TIME=$(TZ="America/Chicago" date -d "@$(($(date +%s) + SLEEP_SECONDS))" '+%Y-%m-%d %H:%M:%S %Z')
+    
+    bashio::log.info "💤 Next analysis scheduled for: $NEXT_RUN_TIME"
+    bashio::log.info "⏰ Sleeping for $SLEEP_DURATION until 3:00 AM CT..."
     sleep $SLEEP_SECONDS
 done

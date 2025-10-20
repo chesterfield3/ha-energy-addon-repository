@@ -1,0 +1,21 @@
+# Credentials and sensitive files
+config/credentials.json
+config/credentials.yaml
+*.credentials
+.env
+*.env
+
+# Temporary files
+*.log
+*.tmp
+temp/
+__pycache__/
+*.pyc
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
