@@ -59,18 +59,6 @@ else
     bashio::log.info "📊 Existing data found - will perform incremental updates"
 fi
 
-# Main loop - run analyzer every UPDATE_INTERVAL hours
-RUN_COUNT=0
-while true; do
-    RUN_COUNT=$((RUN_COUNT + 1))
-    
-    if [ "$FIRST_RUN" = true ] && [ $RUN_COUNT -eq 1 ]; then
-        bashio::log.info "🚀 Starting initial historical data pull (Run #$RUN_COUNT)..."
-        bashio::log.info "📊 This will pull all data from September 27, 2025 to present"
-    else
-        bashio::log.info "🔄 Running incremental energy analysis (Run #$RUN_COUNT)..."
-    fi
-    
 # Function to calculate seconds until next 3:00 AM CT
 calculate_sleep_until_3am() {
     local current_epoch=$(date +%s)
