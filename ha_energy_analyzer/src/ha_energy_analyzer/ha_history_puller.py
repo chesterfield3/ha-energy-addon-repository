@@ -37,15 +37,15 @@ except ImportError:
 class HomeAssistantHistoryPuller:
     """Class to handle Home Assistant history data retrieval."""
     
-    def __init__(self, ha_url: str, token: str, statistics_threshold_days: int = 10, enable_database_access: bool = True):
+    def __init__(self, ha_url: str, token: str, statistics_threshold_days: int = 30, enable_database_access: bool = True):
         """
         Initialize the Home Assistant connection.
         
         Args:
             ha_url: URL of your Home Assistant instance (e.g., 'http://homeassistant.local:8123')
             token: Long-lived access token for API authentication
-            statistics_threshold_days: Days threshold for switching to long-term statistics API (default: 10)
-                                     Data typically moves to long-term storage after 9-10 days
+            statistics_threshold_days: Days threshold for switching to long-term statistics API (default: 30)
+                                     Set higher since many HA instances don't have statistics API available
             enable_database_access: If True, will try to use direct database access when available
         """
         self.ha_url = ha_url.rstrip('/')
