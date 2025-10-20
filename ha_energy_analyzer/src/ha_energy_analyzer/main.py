@@ -1537,24 +1537,32 @@ class HAHistoryMain:
         print(f"⏰ This may take a few moments for large date ranges...")
         
         ha_analyzed_df = None  # Will hold analyzed HA data as DataFrame
+        print(f"\n🔄 Starting data pull operation...")
+        print(f"📊 Data sources requested: {data_sources}")
+        print(f"📅 Date range: {start_date} to {end_date}")
+        print(f"🔄 Incremental mode: {is_incremental}")
+        
         emporia_hourly_df = None  # Will hold Emporia data in matching format
         ha_raw_data = None  # Keep raw HA data for analysis
         
         # Pull Home Assistant data
         if data_sources in ['ha_only', 'both']:
+            print(f"\n🏠 === STARTING HOME ASSISTANT DATA PULL ===")
             if not self.puller:
                 print("❌ HA puller not initialized!")
                 return {'data_pull': False, 'analysis': None}
             
-            print(f"\n🏠 Pulling Home Assistant data...")
+            print(f"🏠 Pulling Home Assistant data...")
             
             # Get sensor list
+            print(f"📋 Loading sensor list from: {self.csv_file}")
             sensors = self.puller.get_sensor_list_from_csv(self.csv_file)
             if not sensors:
                 print("❌ No HA sensors found in CSV file!")
                 if data_sources == 'ha_only':
                     return {'data_pull': False, 'analysis': None}
             else:
+                print(f"✅ Found {len(sensors)} HA sensors")
                 # Adjust datetime for HA API request (timezone + DST + sensor reset)
                 adjusted_start = self.adjust_datetime_for_service_request(start_date, 'ha', is_end_date=False)
                 adjusted_end = self.adjust_datetime_for_service_request(end_date, 'ha', is_end_date=True)
@@ -1609,14 +1617,19 @@ class HAHistoryMain:
                         return {'data_pull': False, 'analysis': None}
         
         # Pull Emporia data
+        print(f"\n🔌 === STARTING EMPORIA VUE DATA PULL ===")
         if data_sources in ['emporia_only', 'both']:
+            print(f"🔌 Checking Emporia availability...")
+            print(f"   emporia_available: {self.emporia_available}")
+            print(f"   emporia_puller: {self.emporia_puller is not None}")
+            
             if not self.emporia_available or not self.emporia_puller:
                 print("⚠️ Emporia not available but requested - continuing with HA data only")
                 if data_sources == 'emporia_only':
                     return {'data_pull': False, 'analysis': None}
                 # For 'both', continue with HA data only
             else:
-                print(f"\n🔌 Pulling Emporia Vue data...")
+                print(f"🔌 Pulling Emporia Vue data...")
                 
                 # Adjust datetime for Emporia API request (timezone + DST)
                 adjusted_start = self.adjust_datetime_for_service_request(start_date, 'emporia', is_end_date=False)

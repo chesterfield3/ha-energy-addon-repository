@@ -141,6 +141,11 @@ def main():
             data_sources = 'both'  # Still try both - let the main app handle the fallback
             logger.warning("⚠️ Emporia Vue not available, but still requesting both sources (will fallback to HA only)")
         
+        logger.info(f"🚀 Starting data pull with parameters:")
+        logger.info(f"   📅 Date range: {start_date} to {end_date}")
+        logger.info(f"   📊 Data sources: {data_sources}")
+        logger.info(f"   🔄 Incremental: {is_incremental}")
+        
         result = app.pull_data(
             start_date=start_date,
             end_date=end_date,
@@ -152,6 +157,8 @@ def main():
             ha_pull_offset_only=False,
             is_incremental=is_incremental  # True for incremental, False for initial pull
         )
+        
+        logger.info(f"📋 Data pull completed, checking results...")
         
         if isinstance(result, dict) and result['data_pull']:
             if is_first_run:
