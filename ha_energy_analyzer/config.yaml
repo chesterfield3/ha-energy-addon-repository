@@ -1,0 +1,48 @@
+{
+  "name": "HA Energy Data Analyzer",
+  "version": "1.0.0",
+  "slug": "ha_energy_analyzer",
+  "description": "Comprehensive energy monitoring and analysis tool that integrates with Home Assistant and Emporia Vue smart meters",
+  "url": "https://github.com/chesterfield3/HA_Energy_Tracker",
+  "startup": "application",
+  "boot": "auto",
+  "init": false,
+  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
+  "ports": {
+    "8080/tcp": 8080
+  },
+  "ports_description": {
+    "8080/tcp": "Web interface and health check endpoint"
+  },
+  "map": ["config:rw", "share:rw"],
+  "options": {
+    "ha_url": "http://supervisor/core",
+    "ha_token": "",
+    "emporia_email": "",
+    "emporia_password": "",
+    "update_interval": 24,
+    "log_level": "INFO",
+    "timezone": "America/Chicago",
+    "enable_email_notifications": false,
+    "email_from": "",
+    "email_to": "",
+    "email_password": ""
+  },
+  "schema": {
+    "ha_url": "url",
+    "ha_token": "password",
+    "emporia_email": "email?",
+    "emporia_password": "password?",
+    "update_interval": "int(1,168)",
+    "log_level": "list(DEBUG|INFO|WARNING|ERROR)",
+    "timezone": "str",
+    "enable_email_notifications": "bool",
+    "email_from": "email?",
+    "email_to": "email?",
+    "email_password": "password?"
+  },
+  "environment": {
+    "LOG_FORMAT": "{LEVEL}: {MESSAGE}"
+  },
+  "image": "ghcr.io/chesterfield3/ha-energy-analyzer"
+}
