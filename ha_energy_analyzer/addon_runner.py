@@ -46,12 +46,19 @@ def main():
             # Try the standard supervisor API endpoint first
             app.ha_url = 'http://supervisor/core'
             logger.info("🔧 Using Home Assistant Supervisor core API")
+            
+            # Check if we have a Supervisor token available
+            supervisor_token = os.getenv('SUPERVISOR_TOKEN', '')
+            if supervisor_token and not app.ha_token:
+                app.ha_token = supervisor_token
+                logger.info("🔐 Using Supervisor token for authentication")
         else:
             app.ha_url = ha_url_from_config
         
         if not app.ha_token:
             logger.error("❌ HA_TOKEN environment variable is required!")
             logger.error("💡 Please configure the ha_token in the add-on configuration")
+            logger.error("🔗 Or try using your external HA URL (e.g., http://homeassistant.local:8123)")
             return 1
         
         logger.info(f"🔗 HA URL: {app.ha_url}")
