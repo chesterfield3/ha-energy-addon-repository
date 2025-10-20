@@ -89,6 +89,14 @@ def test_single_sensor_pull():
         
         print("✅ Connection successful")
         
+        # Discover available endpoints
+        print(f"\n🔍 Discovering available API endpoints...")
+        endpoints = puller.discover_available_endpoints()
+        for endpoint, info in endpoints.items():
+            status = "✅ Available" if info['available'] else "❌ Unavailable"
+            code = info.get('status_code', 'ERROR')
+            print(f"   {endpoint}: {status} ({code})")
+        
     except Exception as e:
         print(f"❌ Failed to initialize puller: {e}")
         return False

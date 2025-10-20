@@ -24,18 +24,29 @@ import argparse
 import os
 from urllib.parse import urljoin
 
+# Try to import the database puller
+try:
+    from .ha_database_puller import create_database_puller
+    DATABASE_AVAILABLE = True
+except ImportError:
+    DATABASE_AVAILABLE = False
+    create_database_puller = None
+    print("ℹ️ Database puller not available - using API-only mode")
+
 
 class HomeAssistantHistoryPuller:
     """Class to handle Home Assistant history data retrieval."""
     
-    def __init__(self, ha_url: str, token: str, statistics_threshold_days: int = 7):
+    def __init__(self, ha_url: str, token: str, statistics_threshold_days: int = 30, enable_database_access: bool = True):
         """
         Initialize the Home Assistant connection.
         
         Args:
             ha_url: URL of your Home Assistant instance (e.g., 'http://homeassistant.local:8123')
             token: Long-lived access token for API authentication
-            statistics_threshold_days: Days threshold for switching to long-term statistics API (default: 7)
+            statistics_threshold_days: Days threshold for switching to long-term statistics API (default: 30)
+                                     Set higher since many HA instances don't have statistics API available
+            enable_database_access: If True, will try to use direct database access when available
         """
         self.ha_url = ha_url.rstrip('/')
         self.headers = {
@@ -43,6 +54,76 @@ class HomeAssistantHistoryPuller:
             'Content-Type': 'application/json'
         }
         self.statistics_threshold_days = statistics_threshold_days
+        self.enable_database_access = enable_database_access
+        self.database_puller = None
+        
+        # Try to initialize database access if enabled
+        if self.enable_database_access:
+            self._try_initialize_database()
+    
+    def _try_initialize_database(self):
+        """Try to initialize direct database access."""
+        if not DATABASE_AVAILABLE or not create_database_puller:
+            print("ℹ️ Database access not available - using API-only mode")
+            return
+        
+        try:
+            self.database_puller = create_database_puller()
+            if self.database_puller:
+                print("✅ Database access initialized successfully")
+            else:
+                print("⚠️ Database access failed - falling back to API-only mode")
+        except Exception as e:
+            print(f"⚠️ Database initialization error: {e} - using API-only mode")
+            self.database_puller = None
+    
+    def _get_database_history(self, entity_ids: List[str], start_dt: datetime, end_dt: datetime) -> Optional[List[List[Dict]]]:
+        """
+        Get history data using direct database access.
+        
+        Args:
+            entity_ids: List of entity IDs
+            start_dt: Start datetime
+            end_dt: End datetime
+            
+        Returns:
+            History data in API format or None if failed
+        """
+        if not self.database_puller:
+            return None
+        
+        try:
+            # Try statistics first (more efficient for energy sensors)
+            duration = end_dt - start_dt
+            
+            if duration.days >= 1:
+                # For longer periods, try hourly statistics
+                print("📊 Trying database hourly statistics...")
+                stats_data = self.database_puller.get_entity_statistics(
+                    entity_ids, start_dt, end_dt, use_short_term=True
+                )
+                
+                if stats_data:
+                    converted_data = self.database_puller.convert_to_history_format(stats_data, 'statistics')
+                    if converted_data:
+                        print(f"✅ Database statistics successful: {sum(len(e) for e in converted_data)} records")
+                        return converted_data
+            
+            # Fall back to raw states if statistics not available
+            print("📊 Trying database raw states...")
+            states_data = self.database_puller.get_entity_states(entity_ids, start_dt, end_dt)
+            
+            if states_data:
+                converted_data = self.database_puller.convert_to_history_format(states_data, 'states')
+                if converted_data:
+                    print(f"✅ Database states successful: {sum(len(e) for e in converted_data)} records")
+                    return converted_data
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Database history error: {e}")
+            return None
         
     def test_connection(self) -> bool:
         """
@@ -133,7 +214,19 @@ class HomeAssistantHistoryPuller:
             print(f"🔄 Fetching history data from {start_time} to {end_time}")
             print(f"⏱️ Duration: {days_span} days, {duration.seconds // 3600} hours")
             
-            # Use long-term statistics for longer periods (configurable threshold)
+            # Try database access first for longer periods if available
+            if self.database_puller and days_span >= 3:  # Use database for 3+ days
+                print(f"📊 Trying Database Access (optimal for {days_span}+ day periods)")
+                try:
+                    db_data = self._get_database_history(entity_ids, start_dt, end_dt)
+                    if db_data:
+                        return db_data
+                    else:
+                        print("⚠️ Database access returned no data, falling back to API")
+                except Exception as e:
+                    print(f"⚠️ Database access failed: {e}, falling back to API")
+            
+            # Use long-term statistics for longer periods (30+ days)
             if days_span >= self.statistics_threshold_days:
                 print(f"📊 Using Long-Term Statistics API (optimal for {days_span}+ day periods, threshold: {self.statistics_threshold_days} days)")
                 return self.get_long_term_statistics(entity_ids, start_time, end_time)
@@ -211,53 +304,77 @@ class HomeAssistantHistoryPuller:
         Returns:
             Dictionary containing the history data response (converted to regular format)
         """
-        # Construct the statistics API URL
-        if '/core' in self.ha_url:
-            url = f"{self.ha_url}/api/history/statistics"
-        else:
-            url = urljoin(self.ha_url, '/api/history/statistics')
+        # Try different possible statistics API endpoints
+        statistics_endpoints = [
+            '/api/history/statistics',
+            '/api/statistics',
+            '/api/history/statistics_during_period'
+        ]
         
-        # Parameters for the statistics request
-        params = {
-            'statistic_ids': ','.join(entity_ids),
-            'start_time': start_time,
-            'end_time': end_time,
-            'period': 'hour'  # Hourly statistics for better granularity
-        }
+        for endpoint in statistics_endpoints:
+            try:
+                # Construct the statistics API URL
+                if '/core' in self.ha_url:
+                    url = f"{self.ha_url}{endpoint}"
+                else:
+                    url = urljoin(self.ha_url, endpoint)
+                
+                # Try different parameter formats
+                params_variants = [
+                    {
+                        'statistic_ids': ','.join(entity_ids),
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'period': 'hour'
+                    },
+                    {
+                        'statistic_ids': entity_ids,  # As list instead of comma-separated
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'period': 'hour'
+                    },
+                    {
+                        'entity_ids': ','.join(entity_ids),  # Try entity_ids instead of statistic_ids
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'period': 'hour'
+                    }
+                ]
+                
+                for i, params in enumerate(params_variants):
+                    print(f"📡 Trying Statistics API: {url} (variant {i+1})")
+                    print(f"🎯 Parameters: {params}")
+                    
+                    response = requests.get(
+                        url,
+                        headers=self.headers,
+                        params=params,
+                        timeout=60
+                    )
+                    
+                    if response.status_code == 200:
+                        statistics_data = response.json()
+                        print(f"✅ Successfully retrieved long-term statistics from {endpoint}")
+                        
+                        # Convert statistics format to regular history format for compatibility
+                        converted_data = self.convert_statistics_to_history_format(statistics_data)
+                        
+                        # Count total data points
+                        total_points = sum(len(entity_data) for entity_data in converted_data)
+                        print(f"📊 Total data points converted: {total_points}")
+                        
+                        return converted_data
+                    else:
+                        print(f"⚠️ {endpoint} variant {i+1} returned {response.status_code}: {response.reason}")
+                        
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Error with {endpoint}: {e}")
+                continue
         
-        print(f"📡 Long-Term Statistics API URL: {url}")
-        print(f"🎯 Statistics IDs: {', '.join(entity_ids)}")
-        print(f"⏱️ Period: hourly")
-        
-        try:
-            response = requests.get(
-                url,
-                headers=self.headers,
-                params=params,
-                timeout=60
-            )
-            response.raise_for_status()
-            
-            statistics_data = response.json()
-            print(f"✅ Successfully retrieved long-term statistics")
-            
-            # Convert statistics format to regular history format for compatibility
-            converted_data = self.convert_statistics_to_history_format(statistics_data)
-            
-            # Count total data points
-            total_points = sum(len(entity_data) for entity_data in converted_data)
-            print(f"📊 Total data points converted: {total_points}")
-            
-            return converted_data
-            
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Error fetching long-term statistics: {e}")
-            print(f"🔄 Falling back to regular history API...")
-            return self.get_regular_history(entity_ids, start_time, end_time)
-        except json.JSONDecodeError as e:
-            print(f"❌ Error parsing statistics JSON response: {e}")
-            print(f"🔄 Falling back to regular history API...")
-            return self.get_regular_history(entity_ids, start_time, end_time)
+        # If all statistics endpoints failed, fall back to regular history
+        print(f"❌ All statistics API endpoints failed")
+        print(f"🔄 Falling back to regular history API...")
+        return self.get_regular_history(entity_ids, start_time, end_time)
     
     def convert_statistics_to_history_format(self, statistics_data: Dict) -> List[List[Dict]]:
         """
@@ -358,6 +475,53 @@ class HomeAssistantHistoryPuller:
         except json.JSONDecodeError as e:
             print(f"❌ Error parsing metadata JSON response: {e}")
             return {}
+    
+    def discover_available_endpoints(self) -> Dict:
+        """
+        Discover what API endpoints are available on this Home Assistant instance.
+        This can help debug API availability issues.
+        
+        Returns:
+            Dictionary of endpoint availability
+        """
+        endpoints_to_check = [
+            '/api/',
+            '/api/history',
+            '/api/history/statistics',
+            '/api/statistics',
+            '/api/history/statistics_during_period',
+            '/api/states'
+        ]
+        
+        results = {}
+        
+        for endpoint in endpoints_to_check:
+            try:
+                if '/core' in self.ha_url:
+                    url = f"{self.ha_url}{endpoint}"
+                else:
+                    url = urljoin(self.ha_url, endpoint)
+                
+                response = requests.get(
+                    url,
+                    headers=self.headers,
+                    timeout=10
+                )
+                
+                results[endpoint] = {
+                    'status_code': response.status_code,
+                    'available': response.status_code in [200, 400],  # 400 might mean endpoint exists but needs params
+                    'reason': response.reason
+                }
+                
+            except Exception as e:
+                results[endpoint] = {
+                    'status_code': None,
+                    'available': False,
+                    'error': str(e)
+                }
+        
+        return results
     
     def save_to_csv(self, history_data: List[List[Dict]], output_file: str) -> bool:
         """
