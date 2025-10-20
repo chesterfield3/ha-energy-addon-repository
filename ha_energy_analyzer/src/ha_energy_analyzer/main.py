@@ -18,6 +18,14 @@ from datetime import datetime, timedelta
 import pytz
 from typing import Optional, Tuple, Dict, List, Any
 
+# Try to import holidays library for holiday detection
+try:
+    import holidays
+    HOLIDAYS_AVAILABLE = True
+except ImportError:
+    HOLIDAYS_AVAILABLE = False
+    holidays = None
+
 # Handle imports for both direct execution and module import
 try:
     from .ha_history_puller import HomeAssistantHistoryPuller
@@ -1390,15 +1398,19 @@ class HAHistoryMain:
                 return False
             
             # Check if it's a US holiday
-            try:
-                import holidays
-                us_holidays = holidays.country_holidays('US', years=dt.year)
-                if dt.date() in us_holidays:
-                    return False
-            except ImportError:
-                # If holidays library is not available, just use weekday logic
-                print("⚠️ holidays library not available, using weekday-only peak detection")
-                pass
+            if HOLIDAYS_AVAILABLE and holidays:
+                try:
+                    us_holidays = holidays.country_holidays('US', years=dt.year)
+                    if dt.date() in us_holidays:
+                        return False
+                except Exception as e:
+                    # Handle other potential errors with holidays library
+                    print(f"⚠️ Error using holidays library ({e}), using weekday-only peak detection")
+            elif not HOLIDAYS_AVAILABLE:
+                # Only show this warning once per session
+                if not hasattr(self, '_holidays_warning_shown'):
+                    print("⚠️ holidays library not available, using weekday-only peak detection")
+                    self._holidays_warning_shown = True
             
             hour = dt.hour
             # Peak hours: 7:00 AM (07:00) to 8:59 PM (20:59) on weekdays only

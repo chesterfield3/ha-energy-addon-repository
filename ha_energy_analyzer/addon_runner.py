@@ -26,6 +26,15 @@ def main():
     try:
         logger.info("🏠 Starting HA Energy Analyzer Add-on...")
         
+        # Test holidays library availability
+        try:
+            import holidays
+            logger.info("✅ holidays library loaded successfully for peak hour detection")
+        except ImportError as e:
+            logger.warning(f"⚠️ holidays library not available ({e}) - will use weekday-only peak detection")
+        except Exception as e:
+            logger.warning(f"⚠️ Error loading holidays library ({e}) - will use weekday-only peak detection")
+        
         # Import after ensuring the module path
         sys.path.insert(0, '/app/src')
         from ha_energy_analyzer.main import HAHistoryMain
