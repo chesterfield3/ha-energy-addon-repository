@@ -37,7 +37,7 @@ class HAHistoryMain:
         """Initialize with default configuration"""
         # Get path to base directory from the src/ha_energy_analyzer directory
         self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        self.csv_file = os.path.join(self.base_dir, 'data', 'history.csv')
+        self.csv_file = os.path.join(self.base_dir, 'data', 'ha_sensors.csv')
         
         # Load credentials from config file
         self.ha_url, self.ha_token = self.load_ha_credentials()

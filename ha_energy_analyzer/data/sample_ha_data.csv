@@ -1,0 +1,13 @@
+entity_id,state,last_changed,last_updated,attributes
+sensor.kitchen_fridge_today_s_consumption,1.250,2025-10-15T06:00:00+00:00,2025-10-15T06:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.kitchen_fridge_today_s_consumption,1.275,2025-10-15T07:00:00+00:00,2025-10-15T07:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.kitchen_fridge_today_s_consumption,1.298,2025-10-15T08:00:00+00:00,2025-10-15T08:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.kitchen_fridge_today_s_consumption,1.325,2025-10-15T09:00:00+00:00,2025-10-15T09:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.basement_fridge_today_s_consumption,0.850,2025-10-15T06:00:00+00:00,2025-10-15T06:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.basement_fridge_today_s_consumption,0.863,2025-10-15T07:00:00+00:00,2025-10-15T07:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.basement_fridge_today_s_consumption,0.878,2025-10-15T08:00:00+00:00,2025-10-15T08:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.basement_fridge_today_s_consumption,0.891,2025-10-15T09:00:00+00:00,2025-10-15T09:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.dishwasher_today_s_consumption,2.100,2025-10-15T06:00:00+00:00,2025-10-15T06:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.dishwasher_today_s_consumption,2.100,2025-10-15T07:00:00+00:00,2025-10-15T07:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.dishwasher_today_s_consumption,3.255,2025-10-15T08:00:00+00:00,2025-10-15T08:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"
+sensor.dishwasher_today_s_consumption,3.255,2025-10-15T09:00:00+00:00,2025-10-15T09:00:00+00:00,"{""unit_of_measurement"": ""kWh"", ""device_class"": ""energy""}"

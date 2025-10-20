@@ -250,10 +250,10 @@ def main():
         epilog="""
 Examples:
   # Pull data for yesterday
-  python ha_history_puller.py --csv history.csv --start 2025-10-14 --end 2025-10-15
+  python ha_history_puller.py --csv ha_sensors.csv --start 2025-10-14 --end 2025-10-15
   
   # Pull data with specific times
-  python ha_history_puller.py --csv history.csv --start "2025-10-14 08:00:00" --end "2025-10-14 20:00:00"
+  python ha_history_puller.py --csv ha_sensors.csv --start "2025-10-14 08:00:00" --end "2025-10-14 20:00:00"
   
   # Use environment variables for credentials
   export HA_URL="http://homeassistant.local:8123"

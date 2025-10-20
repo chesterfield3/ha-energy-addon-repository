@@ -1,0 +1,33 @@
+# Home Assistant Sensor Configuration Template
+# 
+# This file maps your Home Assistant energy sensor entity IDs to friendly names.
+# The 'upstream_sensor' column is optional and used for grouping related sensors.
+#
+# Format: entity_id, name, upstream_sensor
+# - entity_id: The exact Home Assistant entity ID for your energy sensor
+# - name: A friendly name for the sensor (used in reports and charts)
+# - upstream_sensor: Optional grouping field (use 'none' if not grouping)
+#
+# Example entries:
+entity_id, name, upstream_sensor
+sensor.kitchen_fridge_today_s_consumption, kitchen_fridge, none
+sensor.basement_fridge_today_s_consumption, basement_fridge, none
+sensor.dishwasher_today_s_consumption, dishwasher, none
+sensor.living_room_tv_today_s_consumption, living_room_tv, none
+sensor.microwave_today_s_consumption, microwave, none
+sensor.water_heater_today_s_consumption, water_heater, none
+sensor.washing_machine_today_s_consumption, washing_machine, none
+sensor.computer_today_s_consumption, computer, office
+sensor.printer_today_s_consumption, printer, office
+sensor.monitor_today_s_consumption, monitor, office
+
+# To use this file:
+# 1. Copy this template to 'ha_sensors.csv'
+# 2. Replace the example entries with your actual Home Assistant sensor entity IDs
+# 3. Update the friendly names as desired
+# 4. Use the upstream_sensor field to group related sensors (optional)
+#
+# To find your sensor entity IDs:
+# 1. Go to Home Assistant → Developer Tools → States
+# 2. Search for sensors containing "consumption" or "energy"
+# 3. Copy the entity_id values (e.g., sensor.kitchen_fridge_today_s_consumption)

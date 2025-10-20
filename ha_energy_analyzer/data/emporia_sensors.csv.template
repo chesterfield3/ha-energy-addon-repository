@@ -1,0 +1,34 @@
+# Emporia Vue Sensor Configuration Template  
+#
+# This file maps your Emporia Vue Home Assistant sensor entity IDs to friendly names.
+# These sensors are created by the Emporia Vue integration in Home Assistant.
+#
+# Format: entity_id, name
+# - entity_id: The exact Home Assistant entity ID for your Emporia Vue sensor
+# - name: A friendly name for the sensor (used in reports and charts)
+#
+# Example entries:
+entity_id, name
+sensor.emporia_main_panel_today_s_consumption, main_panel
+sensor.emporia_septic_pump_today_s_consumption, septic_pump
+sensor.emporia_office_today_s_consumption, office
+sensor.emporia_garage_today_s_consumption, garage
+sensor.emporia_solar_today_s_consumption, solar
+sensor.emporia_well_pump_today_s_consumption, well_pump
+sensor.emporia_hvac_today_s_consumption, hvac
+sensor.emporia_dryer_today_s_consumption, dryer
+sensor.emporia_car_charger_today_s_consumption, car_charger
+sensor.emporia_total_usage_today_s_consumption, total_usage
+
+# To use this file:
+# 1. Copy this template to 'emporia_sensors.csv'
+# 2. Replace the example entries with your actual Emporia Vue sensor entity IDs
+# 3. Update the friendly names as desired
+#
+# To find your Emporia Vue sensor entity IDs:
+# 1. Go to Home Assistant → Developer Tools → States
+# 2. Search for sensors containing "emporia" and "consumption"
+# 3. Copy the entity_id values (e.g., sensor.emporia_main_panel_today_s_consumption)
+#
+# Note: You need the Emporia Vue integration installed in Home Assistant
+# for these sensors to be available.

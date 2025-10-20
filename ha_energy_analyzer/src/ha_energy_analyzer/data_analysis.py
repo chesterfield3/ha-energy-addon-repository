@@ -32,7 +32,7 @@ from sklearn.linear_model import LinearRegression
 class EnergyDataAnalyzer:
     """Analyzer for Home Assistant energy consumption data"""
     
-    def __init__(self, csv_file: str, sensor_names_file: str = 'history.csv'):
+    def __init__(self, csv_file: str, sensor_names_file: str = 'ha_sensors.csv'):
         """
         Initialize the analyzer with a CSV file.
         

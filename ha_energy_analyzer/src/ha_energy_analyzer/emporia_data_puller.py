@@ -325,7 +325,7 @@ class EmporiaDataPuller:
         return mappings
     
     def save_sensor_mappings_csv(self, filename: str = "emporia_sensors.csv") -> bool:
-        """Save sensor mappings to CSV file (similar to history.csv)"""
+        """Save sensor mappings to CSV file (similar to ha_sensors.csv)"""
         try:
             with open(filename, 'w', newline='') as f:
                 f.write("entity_id, name\n")
