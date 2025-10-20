@@ -1,6 +1,6 @@
 {
   "name": "HA Energy Data Analyzer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "slug": "ha_energy_analyzer",
   "description": "Comprehensive energy monitoring and analysis tool that integrates with Home Assistant and Emporia Vue smart meters",
   "url": "https://github.com/chesterfield3/HA_Energy_Tracker",
@@ -9,10 +9,10 @@
   "init": false,
   "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
   "ports": {
-    "8080/tcp": 8080
+    "8099/tcp": 8099
   },
   "ports_description": {
-    "8080/tcp": "Web interface and health check endpoint"
+    "8099/tcp": "Health check endpoint"
   },
   "map": ["config:rw", "share:rw"],
   "options": {
