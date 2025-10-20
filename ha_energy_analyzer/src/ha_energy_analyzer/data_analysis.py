@@ -18,15 +18,29 @@ Date: 2025-10-15
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime, timedelta
 import pytz
 from typing import Dict, List, Tuple, Optional
 import argparse
 import os
-from scipy import stats
-from sklearn.linear_model import LinearRegression
+
+# Optional visualization dependencies
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    print("Warning: matplotlib not available. Charts will be skipped.")
+
+# Optional scientific computing
+try:
+    from scipy import stats
+    from sklearn.linear_model import LinearRegression
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
+    print("Warning: scipy/sklearn not available. Advanced statistics will be limited.")
 
 
 class EnergyDataAnalyzer:
@@ -361,6 +375,10 @@ class EnergyDataAnalyzer:
             bool: True if successful
         """
         try:
+            if not HAS_MATPLOTLIB:
+                print("⚠️ Matplotlib not available - skipping plot generation")
+                return False
+                
             if not self.hourly_data:
                 print("❌ No hourly data for plotting!")
                 return False
@@ -369,6 +387,10 @@ class EnergyDataAnalyzer:
             os.makedirs(output_dir, exist_ok=True)
             
             print(f"\n📊 Creating consumption plots in {output_dir}/")
+            
+            # Import matplotlib locally for type safety
+            import matplotlib.pyplot as plt
+            import seaborn as sns
             
             # Set style
             plt.style.use('default')

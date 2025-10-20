@@ -10,11 +10,15 @@ RUN apk add --no-cache \
     python3-dev \
     py3-pip \
     gcc \
+    g++ \
     musl-dev \
     bash \
     linux-headers \
     libffi-dev \
-    openssl-dev
+    openssl-dev \
+    pkgconfig \
+    freetype-dev \
+    png-dev
 
 # Set working directory
 WORKDIR /app
