@@ -49,9 +49,13 @@ class HomeAssistantHistoryPuller:
         Returns:
             bool: True if connection successful, False otherwise
         """
+        test_url = urljoin(self.ha_url, '/api/')
         try:
+            print(f"🔍 Testing connection to: {test_url}")
+            print(f"🔑 Using token: {self.headers['Authorization'][:20]}...")
+            
             response = requests.get(
-                urljoin(self.ha_url, '/api/'),
+                test_url,
                 headers=self.headers,
                 timeout=10
             )
@@ -60,6 +64,7 @@ class HomeAssistantHistoryPuller:
             return True
         except requests.exceptions.RequestException as e:
             print(f"❌ Failed to connect to Home Assistant API: {e}")
+            print(f"🔍 Full URL attempted: {test_url}")
             return False
     
     def get_sensor_list_from_csv(self, csv_file: str) -> List[str]:

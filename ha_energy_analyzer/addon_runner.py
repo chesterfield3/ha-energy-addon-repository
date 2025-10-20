@@ -38,11 +38,20 @@ def main():
         app.csv_file = "/share/ha_energy_analyzer/ha_sensors.csv"
         
         # Use environment variables for credentials
-        app.ha_url = os.getenv('HA_URL', 'http://supervisor/core')
+        ha_url_from_config = os.getenv('HA_URL', 'http://supervisor/core')
         app.ha_token = os.getenv('HA_TOKEN', '')
+        
+        # For Home Assistant add-ons, we need to use the correct supervisor endpoint
+        if ha_url_from_config == 'http://supervisor/core':
+            # Try the standard supervisor API endpoint first
+            app.ha_url = 'http://supervisor/core'
+            logger.info("🔧 Using Home Assistant Supervisor core API")
+        else:
+            app.ha_url = ha_url_from_config
         
         if not app.ha_token:
             logger.error("❌ HA_TOKEN environment variable is required!")
+            logger.error("💡 Please configure the ha_token in the add-on configuration")
             return 1
         
         logger.info(f"🔗 HA URL: {app.ha_url}")
