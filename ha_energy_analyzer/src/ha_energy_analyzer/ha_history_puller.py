@@ -39,14 +39,14 @@ class HomeAssistantHistoryPuller:
     
     def __init__(self, ha_url: str, token: str, statistics_threshold_days: int = 10, enable_database_access: bool = True):
         """
-        Initialize the Home Assistant connection with API-first approach.
+        Initialize the Home Assistant connection.
         
         Args:
             ha_url: URL of your Home Assistant instance (e.g., 'http://homeassistant.local:8123')
             token: Long-lived access token for API authentication
             statistics_threshold_days: Days threshold for switching to long-term statistics API (default: 10)
                                      Data typically moves to long-term storage after 9-10 days
-            enable_database_access: If True, will use database only for data older than 10 days (API-first for accuracy)
+            enable_database_access: If True, will try to use direct database access when available
         """
         self.ha_url = ha_url.rstrip('/')
         self.headers = {
@@ -190,13 +190,11 @@ class HomeAssistantHistoryPuller:
     
     def get_history_data(self, entity_ids: List[str], start_time: str, end_time: str) -> List[List[Dict]]:
         """
-        Retrieve history data from Home Assistant using API-first approach for accuracy.
+        Retrieve history data from Home Assistant using the optimal API endpoint.
         
-        Strategy (prioritizes data accuracy):
-        - Regular history API: For recent data (< 10 days) 
-        - Long-term statistics API: For older data (>= 10 days)
-        - Database access: Only for very old data (> 10 days old) as fallback/supplement
-        - Hybrid approach: Combines API (recent) + database (old) when needed
+        Automatically chooses between:
+        - Regular history API: For recent data (< 7 days)
+        - Long-term statistics API: For older data (>= 7 days)
         
         Args:
             entity_ids: List of entity IDs to retrieve data for
@@ -204,7 +202,7 @@ class HomeAssistantHistoryPuller:
             end_time: End time in ISO format (e.g., '2025-10-15T23:59:59')
             
         Returns:
-            List containing the history data for each entity
+            Dictionary containing the history data response
         """
         # Calculate the time span to determine optimal API
         try:
@@ -216,17 +214,20 @@ class HomeAssistantHistoryPuller:
             print(f"🔄 Fetching history data from {start_time} to {end_time}")
             print(f"⏱️ Duration: {days_span} days, {duration.seconds // 3600} hours")
             
-            # Check if we need hybrid approach (mix of database + API)
-            days_from_now = (datetime.now() - start_dt).days
-            api_cutoff_days = 10  # Use API for last 10 days, database only for older
+            # Try database access first for longer periods if available
+            if self.database_puller and days_span >= 3:  # Use database for 3+ days
+                print(f"📊 Trying Database Access (optimal for {days_span}+ day periods)")
+                try:
+                    db_data = self._get_database_history(entity_ids, start_dt, end_dt)
+                    if db_data:
+                        return db_data
+                    else:
+                        print("⚠️ Database access returned no data, falling back to API")
+                except Exception as e:
+                    print(f"⚠️ Database access failed: {e}, falling back to API")
             
-            if days_from_now > api_cutoff_days and days_span > api_cutoff_days:
-                # Use hybrid approach: database for old data, API for recent data
-                print(f"🔄 Using Hybrid Approach: Database for data older than {api_cutoff_days} days, API for recent data")
-                return self.get_hybrid_history_data(entity_ids, start_dt, end_dt, api_cutoff_days)
-            
-            # PRIORITY 1: Use API methods for recent data (last 10 days) - ensures accuracy
-            elif days_span >= self.statistics_threshold_days:
+            # Use long-term statistics for longer periods (30+ days)
+            if days_span >= self.statistics_threshold_days:
                 print(f"📊 Using Long-Term Statistics API (optimal for {days_span}+ day periods, threshold: {self.statistics_threshold_days} days)")
                 return self.get_long_term_statistics(entity_ids, start_time, end_time)
             else:
@@ -236,72 +237,6 @@ class HomeAssistantHistoryPuller:
         except Exception as e:
             print(f"⚠️ Error parsing dates, falling back to regular history API: {e}")
             return self.get_regular_history(entity_ids, start_time, end_time)
-    
-    def get_hybrid_history_data(self, entity_ids: List[str], start_dt: datetime, end_dt: datetime, api_cutoff_days: int) -> List[List[Dict]]:
-        """
-        Retrieve history data using a hybrid approach:
-        - Database for data older than cutoff_days 
-        - API for recent data (last cutoff_days)
-        
-        Args:
-            entity_ids: List of entity IDs to retrieve data for
-            start_dt: Start datetime
-            end_dt: End datetime  
-            api_cutoff_days: Days from now to use API (database used for older)
-            
-        Returns:
-            Combined history data from both sources
-        """
-        print(f"🔄 Hybrid approach: API for last {api_cutoff_days} days, database for older data")
-        
-        # Calculate cutoff point
-        now = datetime.now()
-        api_cutoff_dt = now - timedelta(days=api_cutoff_days)
-        
-        all_data = []
-        
-        # Part 1: Get old data from database (if available and needed)
-        if start_dt < api_cutoff_dt and self.database_puller:
-            old_end_dt = min(api_cutoff_dt, end_dt)
-            print(f"📊 Fetching old data from database: {start_dt.isoformat()} to {old_end_dt.isoformat()}")
-            
-            try:
-                db_data = self._get_database_history(entity_ids, start_dt, old_end_dt)
-                if db_data:
-                    all_data.extend(db_data)
-                    print(f"✅ Database portion: {sum(len(e) for e in db_data)} records")
-                else:
-                    print("⚠️ Database returned no data for old portion")
-            except Exception as e:
-                print(f"⚠️ Database error for old data: {e}")
-        
-        # Part 2: Get recent data from API  
-        if end_dt > api_cutoff_dt:
-            api_start_dt = max(api_cutoff_dt, start_dt)
-            api_start_str = api_start_dt.isoformat()
-            api_end_str = end_dt.isoformat()
-            
-            print(f"📊 Fetching recent data from API: {api_start_str} to {api_end_str}")
-            
-            # Determine which API to use for recent data
-            recent_days = (end_dt - api_start_dt).days
-            if recent_days >= self.statistics_threshold_days:
-                api_data = self.get_long_term_statistics(entity_ids, api_start_str, api_end_str)
-            else:
-                api_data = self.get_regular_history(entity_ids, api_start_str, api_end_str)
-            
-            if api_data:
-                all_data.extend(api_data)
-                print(f"✅ API portion: {sum(len(e) for e in api_data)} records")
-            else:
-                print("⚠️ API returned no data for recent portion")
-        
-        if not all_data:
-            print("❌ No data retrieved from either source")
-            return []
-        
-        print(f"✅ Hybrid approach successful: {sum(len(e) for e in all_data)} total records")
-        return all_data
     
     def get_regular_history(self, entity_ids: List[str], start_time: str, end_time: str) -> List[List[Dict]]:
         """
