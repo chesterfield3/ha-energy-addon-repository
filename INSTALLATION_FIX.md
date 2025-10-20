@@ -1,17 +1,27 @@
 # 🔧 Add-on Installation Troubleshooting
 
-## ✅ **Issue Fixed: Docker Registry Error**
+## ✅ **Issues Fixed: Docker Build Errors**
 
-### Problem
+### Problem 1: Docker Registry Error
 ```
 Failed to install add-on
 Can't install ghcr.io/chesterfield3/ha-energy-analyzer:1.0.0: 403 Client Error
 ```
 
-### ✅ **Solution Applied**
+### Problem 2: Python PEP 668 Error
+```
+error: externally-managed-environment
+× This environment is externally managed
+hint: See PEP 668 for the detailed specification.
+```
+
+### ✅ **Solutions Applied**
 - Removed invalid Docker registry reference from `config.yaml`
+- Added `--break-system-packages` flag to pip install
+- Added proper BUILD_FROM default argument
+- Added additional build dependencies for Python packages
+- Streamlined requirements.txt for faster installation
 - Add-on now builds locally using the Dockerfile
-- No external registry dependencies
 
 ## 🚀 **How to Install Now**
 
