@@ -1,6 +1,6 @@
 {
   "name": "HA Energy Data Analyzer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "slug": "ha_energy_analyzer",
   "description": "Comprehensive energy monitoring and analysis tool that integrates with Home Assistant and Emporia Vue smart meters",
   "url": "https://github.com/chesterfield3/HA_Energy_Tracker",
