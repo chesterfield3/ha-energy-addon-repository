@@ -66,8 +66,8 @@ calculate_sleep_until_3am() {
     local current_minute=$(TZ="America/Chicago" date +%M)
     local current_second=$(TZ="America/Chicago" date +%S)
     
-    # Calculate seconds since midnight CT
-    local seconds_since_midnight=$(( (current_hour * 3600) + (current_minute * 60) + current_second ))
+    # Calculate seconds since midnight CT (force decimal interpretation with 10#)
+    local seconds_since_midnight=$(( (10#$current_hour * 3600) + (10#$current_minute * 60) + 10#$current_second ))
     
     # Target time: 3:00 AM CT (3 * 3600 = 10800 seconds since midnight)
     local target_seconds=10800
