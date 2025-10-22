@@ -120,11 +120,24 @@ def main():
             logger.info(f"⏰ This may take several minutes for the initial data load...")
         else:
             logger.info("📊 Existing data found - performing incremental update")
-            # For subsequent runs, do incremental update (last 6 hours with overlap)
-            end_date = datetime.now()
-            start_date = end_date - timedelta(hours=6)
-            is_incremental = True
+            # For subsequent runs, do incremental update from most recent data timestamp
             
+            # Find the most recent timestamp in existing data
+            latest_timestamp = app.get_latest_timestamp_from_analysis()
+            
+            if latest_timestamp:
+                # Start 6 hours before the latest data timestamp to ensure overlap
+                start_date = latest_timestamp - timedelta(hours=6)
+                end_date = datetime.now()
+                logger.info(f"📅 Found latest data timestamp: {latest_timestamp}")
+                logger.info(f"📅 Starting incremental update 6 hours before latest: {start_date}")
+            else:
+                # Fallback to current time if no existing data found
+                logger.warning("⚠️ Could not find latest timestamp, falling back to 6 hours from now")
+                end_date = datetime.now()
+                start_date = end_date - timedelta(hours=6)
+            
+            is_incremental = True
             logger.info(f"📅 Incremental update: {start_date} to {end_date}")
         
         # Generate output filename

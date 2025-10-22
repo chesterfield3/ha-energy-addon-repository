@@ -1,6 +1,6 @@
 {
   "name": "HA Energy Data Analyzer",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "slug": "ha_energy_analyzer",
   "description": "Advanced energy monitoring and analysis tool with multiple data access methods: direct database access, API statistics, and regular history. Automatically selects the most efficient method for maximum performance and compatibility.",
   "url": "https://github.com/chesterfield3/HA_Energy_Tracker",
