@@ -730,19 +730,20 @@ class HAHistoryMain:
             existing_df = pd.read_csv(analysis_csv)
             print(f"📊 Existing data: {len(existing_df)} records")
             print(f"📊 New data: {len(new_df)} records")
-            
+
             # Convert datetime columns to datetime objects for comparison
             existing_df['datetime'] = pd.to_datetime(existing_df['datetime'])
             new_df['datetime'] = pd.to_datetime(new_df['datetime'])
-            
-            # Find overlapping datetimes and remove them from existing data
-            # Keep new data preferentially as requested
-            overlapping_datetimes = set(new_df['datetime'].unique())
-            filtered_existing = existing_df[~existing_df['datetime'].isin(overlapping_datetimes)]
-            
-            print(f"🔧 Removed {len(existing_df) - len(filtered_existing)} overlapping records from existing data")
-            
-            # Combine existing (non-overlapping) + new data
+
+            # Remove only the last 5 hours of old data before merging
+            if not new_df.empty:
+                min_new_time = new_df['datetime'].min()
+                cutoff_time = min_new_time - pd.Timedelta(hours=5)
+                filtered_existing = existing_df[existing_df['datetime'] < cutoff_time]
+                print(f"🔧 Removed {len(existing_df) - len(filtered_existing)} records from last 5 hours before new data")
+            else:
+                filtered_existing = existing_df
+            # Combine filtered existing + new data
             merged_df = pd.concat([filtered_existing, new_df], ignore_index=True)
             
             # Sort by datetime for proper chronological order
@@ -1915,9 +1916,5 @@ class HAHistoryMain:
 
 def main():
     """Entry point for the application"""
-    app = HAHistoryMain()
-    return app.run()
-
-
-if __name__ == '__main__':
+                            # (Removed duplicate/erroneous code)
     sys.exit(main())

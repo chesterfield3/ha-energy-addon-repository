@@ -126,11 +126,11 @@ def main():
             latest_timestamp = app.get_latest_timestamp_from_analysis()
             
             if latest_timestamp:
-                # Start 6 hours before the latest data timestamp to ensure overlap
-                start_date = latest_timestamp - timedelta(hours=6)
+                # Start 1 hour before the latest data timestamp to ensure minimal overlap
+                start_date = latest_timestamp - timedelta(hours=1)
                 end_date = datetime.now()
                 logger.info(f"📅 Found latest data timestamp: {latest_timestamp}")
-                logger.info(f"📅 Starting incremental update 6 hours before latest: {start_date}")
+                logger.info(f"📅 Starting incremental update 1 hour before latest: {start_date}")
             else:
                 # Fallback to current time if no existing data found
                 logger.warning("⚠️ Could not find latest timestamp, falling back to 6 hours from now")
