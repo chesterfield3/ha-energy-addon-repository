@@ -735,14 +735,12 @@ class HAHistoryMain:
             existing_df['datetime'] = pd.to_datetime(existing_df['datetime'])
             new_df['datetime'] = pd.to_datetime(new_df['datetime'])
 
-            # Remove only the last 5 hours of old data before merging
-            if not new_df.empty:
-                min_new_time = new_df['datetime'].min()
-                cutoff_time = min_new_time - pd.Timedelta(hours=5)
-                filtered_existing = existing_df[existing_df['datetime'] < cutoff_time]
-                print(f"🔧 Removed {len(existing_df) - len(filtered_existing)} records from last 5 hours before new data")
-            else:
-                filtered_existing = existing_df
+            # Overwrite all lines that have the same datetime and entity_id from the overlap
+            # Keep everything else from the original, and all new data after the most recent time
+            overlap_keys = set(zip(new_df['datetime'], new_df['entity_id']))
+            existing_keys = set(zip(existing_df['datetime'], existing_df['entity_id']))
+            # Remove overlapping rows from existing data
+            filtered_existing = existing_df[~existing_df.apply(lambda row: (row['datetime'], row['entity_id']) in overlap_keys, axis=1)]
             # Combine filtered existing + new data
             merged_df = pd.concat([filtered_existing, new_df], ignore_index=True)
             
