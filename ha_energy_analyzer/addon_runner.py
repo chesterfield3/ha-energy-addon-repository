@@ -106,10 +106,16 @@ def main():
         output_dir = "/share/ha_energy_analyzer/output"
         os.makedirs(output_dir, exist_ok=True)
         
+        week_pull = True
         existing_analysis = os.path.join(output_dir, "latest_analysis.csv")
         is_first_run = not os.path.exists(existing_analysis)
         
-        if is_first_run:
+        if week_pull:
+            logger.info("🔍 Performing weekly data pull for the past 7 days")
+            end_date = datetime.now()
+            start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=7)
+            is_incremental = False
+        elif is_first_run:
             logger.info("🔍 No existing energy analysis found - performing initial historical data pull")
             # For first run, pull all data from Emporia service start date (Sept 27, 2025)
             start_date = datetime(2025, 9, 27, 0, 0, 0)
@@ -141,7 +147,9 @@ def main():
             logger.info(f"📅 Incremental update: {start_date} to {end_date}")
         
         # Generate output filename
-        if is_first_run:
+        if week_pull:
+            output_filename = f"weekly_pull_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        elif is_first_run:
             output_filename = f"initial_historical_pull_{end_date.strftime('%Y%m%d_%H%M%S')}"
         else:
             output_filename = f"incremental_update_{end_date.strftime('%Y%m%d_%H%M%S')}"
@@ -172,7 +180,7 @@ def main():
                 data_sources=data_sources,  # Always try both, let main app handle fallback
                 apply_ha_offset=True,
                 ha_pull_offset_only=False,
-                is_incremental=is_incremental  # True for incremental, False for initial pull
+                is_incremental=is_incremental  # True for incremental, False for initial pull or weekly pull
             )
             logger.info(f"✅ app.pull_data() returned successfully")
             
@@ -185,7 +193,9 @@ def main():
         logger.info(f"📋 Data pull completed, checking results...")
         
         if isinstance(result, dict) and result['data_pull']:
-            if is_first_run:
+            if week_pull:
+                logger.info("✅ Weekly data pull completed successfully!")
+            elif is_first_run:
                 logger.info("✅ Initial historical data pull completed successfully!")
                 logger.info("📊 Future runs will perform incremental updates every few hours")
             else:
@@ -219,7 +229,9 @@ def main():
             
             return 0
         else:
-            if is_first_run:
+            if week_pull:
+                logger.error("❌ Weekly data pull failed!")
+            elif is_first_run:
                 logger.error("❌ Initial historical data pull failed!")
             else:
                 logger.error("❌ Incremental energy analysis failed!")
