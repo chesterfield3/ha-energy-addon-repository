@@ -204,14 +204,19 @@ def main():
             # Copy results to predictable locations
             latest_csv = os.path.join(output_dir, "latest_analysis.csv")
             latest_json = os.path.join(output_dir, "latest_analysis.json")
+            weekly_csv = os.path.join(output_dir, "weekly_analysis.csv")
             
             # With the new base_dir, files are saved directly to shared directory
             import shutil
             try:
                 energy_csv = os.path.join(output_dir, "energy_analysis.csv")
                 energy_json = os.path.join(output_dir, "energy_analysis.json")
-                
-                if os.path.exists(energy_csv):
+
+                if week_pull and os.path.exists(energy_csv):
+                    shutil.copy2(energy_csv, output_filename)
+                    logger.info(f"📊 Latest CSV available at: {output_filename}")
+
+                elif os.path.exists(energy_csv):
                     shutil.copy2(energy_csv, latest_csv)
                     logger.info(f"📊 Latest CSV available at: {latest_csv}")
                 
