@@ -105,24 +105,47 @@ class EnergyDataAnalyzer:
             if 'hourly_consumption' in self.data.columns:
                 print("📊 Detected processed hourly consumption data")
                 # This is already processed hourly data
-                self.data['datetime'] = pd.to_datetime(self.data['datetime'], format='ISO8601')
+                try:
+                    # Use utc=True for DST safety when parsing processed data
+                    self.data['datetime'] = pd.to_datetime(self.data['datetime'], utc=True)
+                    print("🕐 Parsed processed timestamps with UTC awareness for DST safety")
+                except Exception as e:
+                    print(f"⚠️ UTC parsing failed for processed data, trying standard: {e}")
+                    self.data['datetime'] = pd.to_datetime(self.data['datetime'])
                 self.data['state_numeric'] = self.data['cumulative_consumption']
                 self.data['last_changed'] = self.data['datetime']  # For compatibility
                 valid_data = self.data
             else:
                 print("📊 Detected raw history data - will process into hourly consumption")
                 # This is raw history data
-                # Convert timestamps to datetime and then to Central Time
-                self.data['last_changed'] = pd.to_datetime(self.data['last_changed'], format='ISO8601')
-                self.data['last_updated'] = pd.to_datetime(self.data['last_updated'], format='ISO8601')
+                # Convert timestamps to datetime with robust DST/timezone handling
+                try:
+                    # Use utc=True to handle timezone-aware timestamps properly during DST transitions
+                    self.data['last_changed'] = pd.to_datetime(self.data['last_changed'], utc=True)
+                    self.data['last_updated'] = pd.to_datetime(self.data['last_updated'], utc=True)
+                    print("🕐 Parsed timestamps with UTC awareness for DST safety")
+                except Exception as e:
+                    print(f"⚠️ UTC parsing failed, trying standard parsing: {e}")
+                    # Fallback to standard parsing if UTC fails
+                    self.data['last_changed'] = pd.to_datetime(self.data['last_changed'])
+                    self.data['last_updated'] = pd.to_datetime(self.data['last_updated'])
                 
                 # Convert timestamps to Central Time if they are timezone-aware
                 if self.data['last_changed'].dt.tz is not None:
-                    self.data['last_changed'] = self.data['last_changed'].dt.tz_convert(self.central_tz)
-                    print("🕐 Converted timestamps to Central Time")
+                    try:
+                        self.data['last_changed'] = self.data['last_changed'].dt.tz_convert(self.central_tz)
+                        print("🕐 Converted timestamps to Central Time (DST-aware)")
+                    except Exception as e:
+                        print(f"⚠️ Timezone conversion failed: {e}")
+                        # Keep original timestamps if conversion fails
+                        pass
                     
                 if self.data['last_updated'].dt.tz is not None:
-                    self.data['last_updated'] = self.data['last_updated'].dt.tz_convert(self.central_tz)
+                    try:
+                        self.data['last_updated'] = self.data['last_updated'].dt.tz_convert(self.central_tz)
+                    except Exception as e:
+                        print(f"⚠️ Timezone conversion failed for last_updated: {e}")
+                        pass
                 
                 # Convert state to numeric, handling non-numeric values
                 self.data['state_numeric'] = pd.to_numeric(self.data['state'], errors='coerce')
